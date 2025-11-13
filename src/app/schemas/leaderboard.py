@@ -2,11 +2,13 @@
 
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class LeaderboardStudent(BaseModel):
     """Aggregated leaderboard entry."""
+
+    model_config = ConfigDict(from_attributes=True)
 
     student_id: UUID
     campus_uid: str
@@ -15,6 +17,3 @@ class LeaderboardStudent(BaseModel):
     total_credits_received: int = Field(..., ge=0)
     recognitions_received: int = Field(..., ge=0)
     endorsements_received: int = Field(..., ge=0)
-
-    class Config:
-        orm_mode = True

@@ -2,21 +2,23 @@
 
 from functools import lru_cache
 
-from pydantic import BaseSettings, Field
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Environment-driven configuration values."""
 
+    model_config = SettingsConfigDict(
+        env_prefix="BOOSTLY_",
+        env_file=".env",
+        case_sensitive=False,
+    )
+
     database_url: str = Field(
         default="postgresql+psycopg2://postgres:postgres@localhost:5432/boostly",
         description="SQLAlchemy database URL for PostgreSQL instance.",
     )
-
-    class Config:
-        env_prefix = "BOOSTLY_"
-        env_file = ".env"
-        case_sensitive = False
 
 
 @lru_cache(maxsize=1)

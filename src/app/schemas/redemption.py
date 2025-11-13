@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from .recognition import StudentSummary
 
@@ -18,15 +18,14 @@ class RedemptionCreate(BaseModel):
 class RedemptionRead(BaseModel):
     """Represents a redemption record."""
 
+    model_config = ConfigDict(from_attributes=True)
+
     redemption_id: UUID
     student: StudentSummary
     credits_redeemed: int
     voucher_value: int
     status: str
     created_at: datetime
-
-    class Config:
-        orm_mode = True
 
 
 class RedemptionReceipt(BaseModel):

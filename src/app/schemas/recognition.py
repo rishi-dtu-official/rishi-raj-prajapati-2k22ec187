@@ -4,19 +4,18 @@ from datetime import date, datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class StudentSummary(BaseModel):
     """Lightweight projection of student details."""
 
+    model_config = ConfigDict(from_attributes=True)
+
     student_id: UUID
     campus_uid: str
     display_name: str
     email: str
-
-    class Config:
-        orm_mode = True
 
 
 class RecognitionCreate(BaseModel):
@@ -36,6 +35,8 @@ class RecognitionCreate(BaseModel):
 class RecognitionRead(BaseModel):
     """Recognition response payload."""
 
+    model_config = ConfigDict(from_attributes=True)
+
     recognition_id: UUID
     sender: StudentSummary
     receiver: StudentSummary
@@ -43,6 +44,3 @@ class RecognitionRead(BaseModel):
     message: Optional[str]
     month_bucket: date
     created_at: datetime
-
-    class Config:
-        orm_mode = True

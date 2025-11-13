@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from .recognition import StudentSummary
 
@@ -18,10 +18,9 @@ class EndorsementCreate(BaseModel):
 class EndorsementRead(BaseModel):
     """Response payload representing an endorsement."""
 
+    model_config = ConfigDict(from_attributes=True)
+
     endorsement_id: UUID
     recognition_id: UUID
     endorser: StudentSummary
     created_at: datetime
-
-    class Config:
-        orm_mode = True
