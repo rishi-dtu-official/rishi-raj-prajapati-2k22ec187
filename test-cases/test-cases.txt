@@ -1,0 +1,105 @@
+Boostly test cases cover core and step-up features. Use HTTP clients (curl, HTTPie, Postman) or automated suites (pytest + httpx) against a running FastAPI instance (`uvicorn app.main:app --app-dir src --reload`).
+
+Recognition
+Steps
+- Seed two students (S1 = sender, S2 = receiver) via SQL fixtures or factory helpers.
+- Ensure S1 has baseline 100 credits (run monthly reset helper if needed).
+- POST `/api/v1/recognitions` with S1 → S2 payload.
+- GET `/api/v1/recognitions?sender_id=<S1>` to confirm persistence.
+Sample Input
+```
+POST /api/v1/recognitions
+{
+	"sender_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+	"receiver_id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+	"credits_transferred": 30,
+	"message": "Great job hosting the workshop!"
+}
+```
+Expected Output
+- HTTP 201 with recognition object (sender/receiver, month bucket, timestamp).
+- Ledger entries: sender −30, receiver +30 referencing recognition_id.
+- `monthly_quota.credits_sent` for S1 increases by 30.
+Edge Cases
+- Self-recognition → 400.
+- Credits exceeding balance or remaining monthly limit → 400 with message.
+- Unknown student IDs → 404.
+
+Endorsement
+Steps
+- Ensure a recognition exists.
+- POST `/api/v1/endorsements` with a third student as endorser.
+- GET `/api/v1/endorsements?recognition_id=<id>` and verify list order.
+Sample Input
+```
+POST /api/v1/endorsements
+{
+	"recognition_id": "44444444-4444-4444-4444-444444444444",
+	"endorser_id": "cccccccc-cccc-cccc-cccc-cccccccccccc"
+}
+```
+Expected Output
+- HTTP 201 with endorsement payload; recognition’s `endorsement_count` increments.
+- Duplicate request returns 400.
+Edge Cases
+- Non-existent recognition → 404.
+- Missing endorser student → 404.
+
+Redemption
+Steps
+- Ensure student has earned credits (recognitions totaling ≥ redemption request).
+- POST `/api/v1/redemptions` with target credits.
+- Inspect ledger and balance view.
+Sample Input
+```
+POST /api/v1/redemptions
+{
+	"student_id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+	"credits_redeemed": 40
+}
+```
+Expected Output
+- HTTP 201 containing redemption record (voucher value, status, timestamp) plus updated balance.
+- Ledger shows `REDEMPTION` entry with −40.
+Edge Cases
+- Request above redeemable balance → 400.
+- Zero/negative credits rejected at validation (422).
+- No redeemable credits available → 400.
+
+Monthly Reset
+Steps
+- Create ledger rows for previous month to simulate unused credits (e.g., S1 unused 20, S2 unused 70).
+- Execute `python -c "from app.jobs import run_reset_once; print(run_reset_once())" --app-dir src`.
+- Verify `monthly_quota` for new month (send_limit 100, credits_sent 0, carry_forward_credits ≤ 50).
+- Check `credit_ledger` for `MONTHLY_RESET`, `CARRY_FORWARD`, and `CARRY_FORWARD_EXPIRED` entries.
+Expected Output
+- Summary dict with `students_processed`, `carry_forward_total`, `expired_total`.
+- Students with >50 unused credits only carry forward 50; remainder logged as expired.
+Edge Cases
+- Running reset twice in same month should not duplicate entries (idempotent).
+- No students → zero counts, no errors.
+- Simulate failure (e.g., throw exception) to confirm transaction rollback.
+
+Leaderboard
+Steps
+- Seed multiple recognitions and endorsements for different receivers.
+- GET `/api/v1/leaderboard?limit=5`.
+- Confirm ordering: descending by `total_credits_received`, tie-break by `student_id` ascending.
+Sample Response (truncated)
+```
+[
+	{
+		"student_id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+		"campus_uid": "S1002",
+		"display_name": "Bianca Liu",
+		"email": "bianca.liu@example.edu",
+		"total_credits_received": 80,
+		"recognitions_received": 3,
+		"endorsements_received": 5
+	}
+]
+```
+Edge Cases
+- Students with zero recognitions appear with zero counts if within limit.
+- Explicit tie scenario to confirm ascending student_id ordering.
+- Requesting `limit` > 100 should return at most 100 results.
